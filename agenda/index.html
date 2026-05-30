@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agenda Digital</title>
+  <meta name="description" content="Agenda digital para organizar tus eventos y tareas. Funciona sin conexión y guarda tus datos en el navegador." />
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --bg-grad: radial-gradient(1200px 600px at 15% -10%, rgba(22,163,74,0.10), transparent 60%),
+                 radial-gradient(900px 500px at 100% 0%, rgba(59,130,246,0.08), transparent 55%);
+      --surface: #161a22;
+      --surface-2: #1d222c;
+      --surface-3: #232a36;
+      --border: #2a313d;
+      --border-soft: #232932;
+      --text: #eceef2;
+      --text-muted: #9aa3b2;
+      --primary: #16a34a;
+      --primary-2: #07c983;
+      --primary-soft: rgba(22, 163, 74, 0.15);
+      --danger: #f05252;
+      --today: rgba(22, 163, 74, 0.20);
+      --radius: 16px;
+      --radius-sm: 11px;
+      --shadow: 0 10px 40px rgba(0, 0, 0, 0.40);
+      --shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.55);
+      --ring: 0 0 0 3px rgba(22, 163, 74, 0.30);
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #eef1f6;
+        --bg-grad: radial-gradient(1200px 600px at 15% -10%, rgba(22,163,74,0.12), transparent 60%),
+                   radial-gradient(900px 500px at 100% 0%, rgba(59,130,246,0.10), transparent 55%);
+        --surface: #ffffff;
+        --surface-2: #f4f6f9;
+        --surface-3: #eaeef3;
+        --border: #e1e6ee;
+        --border-soft: #eef1f5;
+        --text: #161a22;
+        --text-muted: #687180;
+        --primary-soft: rgba(22, 163, 74, 0.12);
+        --today: rgba(22, 163, 74, 0.14);
+        --shadow: 0 10px 40px rgba(20, 30, 50, 0.10);
+        --shadow-lg: 0 24px 70px rgba(20, 30, 50, 0.18);
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      background-image: var(--bg-grad);
+      background-attachment: fixed;
+      color: var(--text);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    ::selection { background: rgba(22,163,74,0.30); }
+    .app {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 32px 18px 72px;
+    }
+
+    /* entradas animadas */
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    @keyframes pop { from { opacity: 0; transform: scale(0.94) translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    .calendar, .sidebar { animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .sidebar { animation-delay: 0.06s; }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+    header.top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 26px;
+      animation: rise 0.45s ease both;
+    }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand .dot {
+      width: 46px; height: 46px; border-radius: 14px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      display: grid; place-items: center; color: #fff;
+      box-shadow: 0 8px 22px rgba(22,163,74,0.40);
+      position: relative;
+    }
+    .brand .dot svg { width: 24px; height: 24px; }
+    .brand h1 {
+      font-size: 1.5rem; margin: 0; font-weight: 750; letter-spacing: -0.02em;
+      background: linear-gradient(90deg, var(--text), var(--text-muted));
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .brand p { margin: 0; font-size: 0.82rem; color: var(--text-muted); }
+
+    .controls { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    button {
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: var(--radius-sm);
+      padding: 10px 15px;
+      display: inline-flex; align-items: center; gap: 7px;
+      transition: background 0.18s, border-color 0.18s, transform 0.08s, box-shadow 0.18s, color 0.18s;
+    }
+    button svg { width: 16px; height: 16px; flex: none; }
+    button:hover { background: var(--surface-2); border-color: var(--text-muted); }
+    button:active { transform: translateY(1px) scale(0.99); }
+    button:focus-visible { outline: none; box-shadow: var(--ring); }
+    button.primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      border-color: transparent; color: #fff; font-weight: 650;
+      box-shadow: 0 6px 18px rgba(22,163,74,0.35);
+    }
+    button.primary:hover { filter: brightness(1.07); box-shadow: 0 8px 24px rgba(22,163,74,0.45); }
+    button.icon { padding: 10px 12px; }
+    button.ghost { background: transparent; }
+
+    .toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px; flex-wrap: wrap; margin-bottom: 18px;
+      animation: rise 0.5s ease both;
+    }
+    .month-nav { display: flex; align-items: center; gap: 4px; }
+    .month-nav .arrow {
+      width: 38px; height: 38px; padding: 0; justify-content: center;
+      border-radius: 50%; font-size: 1.1rem; line-height: 1;
+    }
+    .month-nav h2 {
+      margin: 0 8px; font-size: 1.2rem; min-width: 196px; text-align: center;
+      text-transform: capitalize; font-weight: 700; letter-spacing: -0.01em;
+      transition: opacity 0.2s;
+    }
+
+    .search { position: relative; flex: 1; min-width: 190px; max-width: 300px; }
+    .search input {
+      width: 100%; font: inherit; padding: 11px 14px 11px 38px;
+      border-radius: var(--radius-sm); border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .search input:focus { outline: none; border-color: var(--primary); box-shadow: var(--ring); }
+    .search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); width: 16px; height: 16px; }
+
+    .layout { display: grid; grid-template-columns: 1fr 340px; gap: 22px; align-items: start; }
+    @media (max-width: 880px) { .layout { grid-template-columns: 1fr; } }
+
+    .calendar, .sidebar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .calendar { padding: 18px; }
+    .weekdays, .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; }
+    .weekdays { margin-bottom: 9px; }
+    .weekdays span {
+      text-align: center; font-size: 0.7rem; font-weight: 700;
+      color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em;
+    }
+    #grid { animation: fade 0.3s ease; }
+    .cell {
+      position: relative;
+      min-height: 96px;
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-sm);
+      padding: 7px;
+      background: var(--surface-2);
+      cursor: pointer;
+      overflow: hidden;
+      transition: border-color 0.18s, background 0.18s, transform 0.12s, box-shadow 0.18s;
+    }
+    .cell:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.18); }
+    .cell.muted { opacity: 0.38; }
+    .cell.today { background: var(--today); border-color: var(--primary); }
+    .cell.today .num { color: var(--primary); }
+    .cell .num {
+      font-size: 0.86rem; font-weight: 650; display: inline-grid; place-items: center;
+      min-width: 24px; height: 24px; border-radius: 7px;
+    }
+    .cell.today .num {
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      color: #fff; box-shadow: 0 3px 8px rgba(22,163,74,0.4);
+    }
+    .cell.selected { outline: 2px solid var(--primary); outline-offset: -2px; }
+    .events-dots { display: flex; flex-direction: column; gap: 3px; margin-top: 5px; }
+    .ev-pill {
+      font-size: 0.68rem; padding: 2px 6px; border-radius: 6px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      color: #fff; font-weight: 550;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+      animation: fade 0.3s ease;
+    }
+    .more { font-size: 0.66rem; color: var(--text-muted); padding-left: 2px; font-weight: 600; }
+
+    .sidebar { padding: 20px; }
+    .sidebar h3 { margin: 0 0 4px; font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .sidebar h3 svg { width: 18px; height: 18px; color: var(--primary); }
+    .sidebar .date-label { color: var(--text-muted); font-size: 0.83rem; margin-bottom: 16px; text-transform: capitalize; }
+    .day-events { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; max-height: 380px; overflow-y: auto; padding-right: 4px; }
+    .day-events::-webkit-scrollbar { width: 8px; }
+    .day-events::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+    .day-events::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    .empty {
+      color: var(--text-muted); font-size: 0.86rem; padding: 26px 0; text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+    }
+    .empty svg { width: 34px; height: 34px; opacity: 0.5; }
+    .event-card {
+      border: 1px solid var(--border);
+      border-left-width: 4px;
+      border-radius: var(--radius-sm);
+      padding: 11px 12px;
+      background: var(--surface-2);
+      display: flex; gap: 10px; align-items: flex-start;
+      animation: pop 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+      transition: transform 0.14s, box-shadow 0.18s, background 0.18s;
+    }
+    .event-card:hover { transform: translateX(2px); box-shadow: 0 6px 16px rgba(0,0,0,0.18); background: var(--surface-3); }
+    .event-card .meta { flex: 1; min-width: 0; }
+    .event-card .t { font-weight: 650; font-size: 0.92rem; word-break: break-word; }
+    .event-card .time { font-size: 0.76rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 5px; margin-top: 3px; }
+    .event-card .time svg { width: 13px; height: 13px; }
+    .event-card .desc { font-size: 0.79rem; color: var(--text-muted); margin-top: 4px; word-break: break-word; }
+    .event-card .acts { display: flex; flex-direction: column; gap: 5px; }
+    .event-card .acts button { padding: 6px; border-radius: 8px; color: var(--text-muted); }
+    .event-card .acts button:hover { color: var(--text); }
+    .event-card .acts button.del:hover { color: var(--danger); border-color: var(--danger); }
+    .event-card .acts svg { width: 15px; height: 15px; }
+
+    /* Modal */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(8, 10, 14, 0.62);
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center; padding: 18px; z-index: 50;
+    }
+    .overlay.open { display: flex; animation: fade 0.2s ease; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); width: 100%; max-width: 460px;
+      padding: 26px; box-shadow: var(--shadow-lg);
+      animation: pop 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .modal h3 { margin: 0 0 18px; font-size: 1.2rem; font-weight: 700; }
+    .field { margin-bottom: 15px; }
+    .field label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    .field input, .field textarea, .field select {
+      width: 100%; font: inherit; padding: 11px 12px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .field input:focus, .field textarea:focus { outline: none; border-color: var(--primary); box-shadow: var(--ring); }
+    .field textarea { resize: vertical; min-height: 70px; }
+    .row { display: flex; gap: 12px; }
+    .row .field { flex: 1; }
+    .colors { display: flex; gap: 10px; }
+    .swatch {
+      width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+      border: 2px solid transparent; position: relative;
+      transition: transform 0.14s, box-shadow 0.14s;
+    }
+    .swatch:hover { transform: scale(1.12); }
+    .swatch.active { transform: scale(1.15); box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px currentColor; }
+    .swatch.active::after {
+      content: "✓"; position: absolute; inset: 0; display: grid; place-items: center;
+      color: #fff; font-size: 0.8rem; font-weight: 700;
+    }
+    .modal-actions { display: flex; justify-content: space-between; margin-top: 6px; }
+    .modal-actions .right { display: flex; gap: 9px; }
+    footer.foot {
+      text-align: center; color: var(--text-muted); font-size: 0.79rem; margin-top: 32px;
+      display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
+    }
+    footer.foot svg { width: 14px; height: 14px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="brand">
+        <div class="dot">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div>
+          <h1>Agenda Digital</h1>
+          <p>Organiza tus eventos y tareas — tus datos se guardan en este navegador</p>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="todayBtn" class="ghost">Hoy</button>
+        <button id="exportBtn" class="icon ghost" title="Exportar a archivo JSON">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+        <button id="importBtn" class="icon ghost" title="Importar desde archivo JSON">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </button>
+        <input id="importFile" type="file" accept="application/json" hidden />
+        <button id="newBtn" class="primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nuevo evento
+        </button>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <div class="month-nav">
+        <button id="prevBtn" class="arrow ghost" aria-label="Mes anterior">‹</button>
+        <h2 id="monthLabel"></h2>
+        <button id="nextBtn" class="arrow ghost" aria-label="Mes siguiente">›</button>
+      </div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="searchInput" type="search" placeholder="Buscar eventos..." />
+      </div>
+    </div>
+
+    <div class="layout">
+      <section class="calendar">
+        <div class="weekdays">
+          <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+        </div>
+        <div id="grid" class="grid"></div>
+      </section>
+
+      <aside class="sidebar">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Eventos del día
+        </h3>
+        <div id="sideDate" class="date-label"></div>
+        <div id="dayEvents" class="day-events"></div>
+        <button id="addForDay" class="primary" style="width:100%; justify-content:center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Añadir a este día
+        </button>
+      </aside>
+    </div>
+
+    <footer class="foot">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Hecho con HTML, CSS y JavaScript · 100% sin conexión · Sin dependencias
+    </footer>
+  </div>
+
+  <!-- Modal evento -->
+  <div id="overlay" class="overlay">
+    <div class="modal">
+      <h3 id="modalTitle">Nuevo evento</h3>
+      <form id="eventForm">
+        <input type="hidden" id="eventId" />
+        <div class="field">
+          <label for="title">Título</label>
+          <input id="title" type="text" required maxlength="120" placeholder="Reunión, cita, recordatorio..." />
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="date">Fecha</label>
+            <input id="date" type="date" required />
+          </div>
+          <div class="field">
+            <label for="time">Hora</label>
+            <input id="time" type="time" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="desc">Descripción (opcional)</label>
+          <textarea id="desc" maxlength="500" placeholder="Detalles..."></textarea>
+        </div>
+        <div class="field">
+          <label>Color / categoría</label>
+          <div class="colors" id="colors"></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="deleteBtn" class="del" style="color:var(--danger);border-color:var(--danger)" hidden>Eliminar</button>
+          <div class="right">
+            <button type="button" id="cancelBtn" class="ghost">Cancelar</button>
+            <button type="submit" class="primary">Guardar</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+    const STORAGE_KEY = "agenda_digital_events_v1";
+    const COLORS = ["#16a34a", "#3b82f6", "#f59e0b", "#ef4444", "#a855f7", "#06b6d4"];
+    const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+    // iconos SVG reutilizables
+    const ICON = {
+      clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>',
+      edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>',
+      trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+      none: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>'
+    };
+
+    let events = load();
+    let viewDate = new Date();
+    let selectedKey = dateKey(new Date());
+    let chosenColor = COLORS[0];
+
+    // --- persistencia ---
+    function load() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+      catch (e) { return []; }
+    }
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+    }
+
+    // --- utilidades de fecha ---
+    function dateKey(d) {
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    }
+    function parseKey(k) {
+      const [y, m, d] = k.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function eventsFor(key) {
+      const q = (document.getElementById("searchInput").value || "").toLowerCase().trim();
+      return events
+        .filter(e => e.date === key)
+        .filter(e => !q || e.title.toLowerCase().includes(q) || (e.desc || "").toLowerCase().includes(q))
+        .sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99"));
+    }
+
+    // --- render calendario ---
+    function renderCalendar() {
+      const year = viewDate.getFullYear();
+      const month = viewDate.getMonth();
+      const label = document.getElementById("monthLabel");
+      label.style.opacity = "0";
+      requestAnimationFrame(() => { label.textContent = MONTHS[month] + " " + year; label.style.opacity = "1"; });
+
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "";
+      // reinicia animación de aparición de la rejilla
+      grid.style.animation = "none"; void grid.offsetWidth; grid.style.animation = "";
+
+      const first = new Date(year, month, 1);
+      let startOffset = (first.getDay() + 6) % 7; // lunes = 0
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const daysPrev = new Date(year, month, 0).getDate();
+      const todayKey = dateKey(new Date());
+
+      const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+
+      for (let i = 0; i < totalCells; i++) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        let dayNum, cellDate, muted = false;
+
+        if (i < startOffset) {
+          dayNum = daysPrev - startOffset + 1 + i;
+          cellDate = new Date(year, month - 1, dayNum);
+          muted = true;
+        } else if (i >= startOffset + daysInMonth) {
+          dayNum = i - (startOffset + daysInMonth) + 1;
+          cellDate = new Date(year, month + 1, dayNum);
+          muted = true;
+        } else {
+          dayNum = i - startOffset + 1;
+          cellDate = new Date(year, month, dayNum);
+        }
+
+        const key = dateKey(cellDate);
+        if (muted) cell.classList.add("muted");
+        if (key === todayKey) cell.classList.add("today");
+        if (key === selectedKey) cell.classList.add("selected");
+
+        const num = document.createElement("div");
+        num.className = "num";
+        num.textContent = dayNum;
+        cell.appendChild(num);
+
+        const dayEvs = eventsFor(key);
+        const dots = document.createElement("div");
+        dots.className = "events-dots";
+        dayEvs.slice(0, 3).forEach(ev => {
+          const pill = document.createElement("div");
+          pill.className = "ev-pill";
+          pill.style.background = ev.color || COLORS[0];
+          pill.textContent = (ev.time ? ev.time + " " : "") + ev.title;
+          dots.appendChild(pill);
+        });
+        if (dayEvs.length > 3) {
+          const more = document.createElement("div");
+          more.className = "more";
+          more.textContent = "+" + (dayEvs.length - 3) + " más";
+          dots.appendChild(more);
+        }
+        cell.appendChild(dots);
+
+        cell.addEventListener("click", () => {
+          selectedKey = key;
+          if (muted) viewDate = new Date(cellDate);
+          renderCalendar();
+          renderSidebar();
+        });
+        cell.addEventListener("dblclick", () => openModal(null, key));
+
+        grid.appendChild(cell);
+      }
+    }
+
+    // --- render barra lateral ---
+    function renderSidebar() {
+      const d = parseKey(selectedKey);
+      const label = d.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      document.getElementById("sideDate").textContent = label;
+
+      const list = document.getElementById("dayEvents");
+      list.innerHTML = "";
+      const evs = eventsFor(selectedKey);
+      if (!evs.length) {
+        const e = document.createElement("div");
+        e.className = "empty";
+        e.innerHTML = ICON.none + "<span>No hay eventos este día.</span>";
+        list.appendChild(e);
+        return;
+      }
+      evs.forEach((ev, idx) => {
+        const card = document.createElement("div");
+        card.className = "event-card";
+        card.style.borderLeftColor = ev.color || COLORS[0];
+        card.style.animationDelay = (idx * 0.04) + "s";
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        const t = document.createElement("div"); t.className = "t"; t.textContent = ev.title;
+        meta.appendChild(t);
+        if (ev.time) { const tm = document.createElement("div"); tm.className = "time"; tm.innerHTML = ICON.clock + "<span></span>"; tm.querySelector("span").textContent = ev.time; meta.appendChild(tm); }
+        if (ev.desc) { const ds = document.createElement("div"); ds.className = "desc"; ds.textContent = ev.desc; meta.appendChild(ds); }
+        card.appendChild(meta);
+
+        const acts = document.createElement("div"); acts.className = "acts";
+        const edit = document.createElement("button"); edit.innerHTML = ICON.edit; edit.title = "Editar";
+        edit.addEventListener("click", () => openModal(ev.id));
+        const del = document.createElement("button"); del.className = "del"; del.innerHTML = ICON.trash; del.title = "Eliminar";
+        del.addEventListener("click", () => { removeEvent(ev.id); });
+        acts.appendChild(edit); acts.appendChild(del);
+        card.appendChild(acts);
+        list.appendChild(card);
+      });
+    }
+
+    // --- modal ---
+    function renderColors() {
+      const wrap = document.getElementById("colors");
+      wrap.innerHTML = "";
+      COLORS.forEach(c => {
+        const s = document.createElement("div");
+        s.className = "swatch" + (c === chosenColor ? " active" : "");
+        s.style.background = c;
+        s.style.color = c;
+        s.addEventListener("click", () => { chosenColor = c; renderColors(); });
+        wrap.appendChild(s);
+      });
+    }
+
+    function openModal(id, presetKey) {
+      const overlay = document.getElementById("overlay");
+      const form = document.getElementById("eventForm");
+      form.reset();
+      document.getElementById("eventId").value = "";
+      const delBtn = document.getElementById("deleteBtn");
+
+      if (id) {
+        const ev = events.find(e => e.id === id);
+        if (!ev) return;
+        document.getElementById("modalTitle").textContent = "Editar evento";
+        document.getElementById("eventId").value = ev.id;
+        document.getElementById("title").value = ev.title;
+        document.getElementById("date").value = ev.date;
+        document.getElementById("time").value = ev.time || "";
+        document.getElementById("desc").value = ev.desc || "";
+        chosenColor = ev.color || COLORS[0];
+        delBtn.hidden = false;
+      } else {
+        document.getElementById("modalTitle").textContent = "Nuevo evento";
+        document.getElementById("date").value = presetKey || selectedKey;
+        chosenColor = COLORS[0];
+        delBtn.hidden = true;
+      }
+      renderColors();
+      overlay.classList.add("open");
+      document.getElementById("title").focus();
+    }
+    function closeModal() { document.getElementById("overlay").classList.remove("open"); }
+
+    function removeEvent(id) {
+      if (!confirm("¿Eliminar este evento?")) return;
+      events = events.filter(e => e.id !== id);
+      save(); renderCalendar(); renderSidebar();
+    }
+
+    // --- eventos de UI ---
+    document.getElementById("prevBtn").addEventListener("click", () => { viewDate.setMonth(viewDate.getMonth() - 1); renderCalendar(); });
+    document.getElementById("nextBtn").addEventListener("click", () => { viewDate.setMonth(viewDate.getMonth() + 1); renderCalendar(); });
+    document.getElementById("todayBtn").addEventListener("click", () => { viewDate = new Date(); selectedKey = dateKey(new Date()); renderCalendar(); renderSidebar(); });
+    document.getElementById("newBtn").addEventListener("click", () => openModal(null));
+    document.getElementById("addForDay").addEventListener("click", () => openModal(null, selectedKey));
+    document.getElementById("cancelBtn").addEventListener("click", closeModal);
+    document.getElementById("deleteBtn").addEventListener("click", () => { const id = document.getElementById("eventId").value; if (id) removeEvent(id); closeModal(); });
+    document.getElementById("overlay").addEventListener("click", (e) => { if (e.target.id === "overlay") closeModal(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+    document.getElementById("searchInput").addEventListener("input", () => { renderCalendar(); renderSidebar(); });
+
+    document.getElementById("eventForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const id = document.getElementById("eventId").value;
+      const data = {
+        title: document.getElementById("title").value.trim(),
+        date: document.getElementById("date").value,
+        time: document.getElementById("time").value,
+        desc: document.getElementById("desc").value.trim(),
+        color: chosenColor
+      };
+      if (!data.title || !data.date) return;
+      if (id) {
+        const ev = events.find(x => x.id === id);
+        if (ev) Object.assign(ev, data);
+      } else {
+        data.id = (Date.now().toString(36) + Math.random().toString(36).slice(2, 7));
+        events.push(data);
+      }
+      selectedKey = data.date;
+      viewDate = parseKey(data.date);
+      save(); closeModal(); renderCalendar(); renderSidebar();
+    });
+
+    // --- exportar / importar ---
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(events, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "agenda-" + dateKey(new Date()) + ".json";
+      a.click(); URL.revokeObjectURL(url);
+    });
+    document.getElementById("importBtn").addEventListener("click", () => document.getElementById("importFile").click());
+    document.getElementById("importFile").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (!Array.isArray(data)) throw new Error("Formato inválido");
+          if (confirm("¿Reemplazar la agenda actual con " + data.length + " eventos importados?")) {
+            events = data; save(); renderCalendar(); renderSidebar();
+          }
+        } catch (err) { alert("No se pudo importar: " + err.message); }
+        e.target.value = "";
+      };
+      reader.readAsText(file);
+    });
+
+    // --- inicio ---
+    renderCalendar();
+    renderSidebar();
+  })();
+  </script>
+</body>
+</html>
